@@ -27,7 +27,7 @@ typedef struct {
 } celula;
 
 typedef struct {
-    char mat[9][9];
+    celula celula[9][9];
     int id;
     int dificuldade;
 } tabuleiro;
@@ -39,12 +39,19 @@ typedef struct {
 } vetor_de_tabuleiros;
 
 typedef struct {
-    celula tabuleiro[81];
-    char playerName[20];
-    bool gameover;
-    bool partidaIsOver;
-    int numeroAtual;
+    // constantes, devem ser inicializadas antes da tela
     tamanho_t tamanho_tela;
+    // necessários no início de cada partida
+    tabuleiro tabuleiro;
+    char player_name[20];
+    bool gameover;
+    bool partida_is_over;
+    double data_inicio;
+    int numero_atual;
+    int pontos;
+    //nao precisa de estado inicial
+    double tempo_de_jogo;
+    rato_t mouse;
 } jogo;
 
 //função de erro
@@ -103,9 +110,27 @@ void desenha_tela_jogo(jogo *sudoku)
         tela_linha((ponto_t){MARGEM, MARGEM + (45 * i)}, (ponto_t){452, MARGEM + (45 * i)}, 2, branco);
         tela_linha((ponto_t){MARGEM + (45 * i), MARGEM}, (ponto_t){MARGEM + (45 * i), 452}, 2, branco);
     }
+
+    //números no tabuleiro
+    for (int i = 0; i < 9; i++) {
+        for (int j = 0; j < 9; j++) {
+            char valor[2];
+            sprintf(valor, "%d", sudoku->tabuleiro.celula[i][j].value);
+            tela_texto((ponto_t){MARGEM + (45 * i) + 10, MARGEM + (45 * j) + 25}, 20, branco, valor);
+        }
+    }
+
     //quadrado em que aparece o número atual
     tela_retangulo((retangulo_t){{500, MARGEM}, {150, 150}}, 2, branco, transparente);
     tela_retangulo((retangulo_t){{505, MARGEM + 5}, {140, 140}}, 2, branco, transparente);
+    if (sudoku->numero_atual == 0) {
+        tela_texto((ponto_t){520, 130}, 27, branco, "APAGAR");
+    } else {
+        char numero[2];
+        sprintf(numero, "%d", sudoku->numero_atual);
+        tela_texto((ponto_t){545, 157}, 100, branco, numero);
+    }
+    
 
     //botao de desistir
     tela_retangulo((retangulo_t){{500, 230}, {150, 50}}, 2, branco, branco);
@@ -117,19 +142,73 @@ void desenha_tela_jogo(jogo *sudoku)
 
 void desenha_tela_inicio(jogo *sudoku) 
 {
+    
+}
+
+void desenha_tela_play_again(jogo *sudoku) {
 
 }
 
 void desenha_tela_fim(jogo *sudoku) 
 {
-    
+
 }
 
 void inicializa_jogo(jogo *sudoku) 
 {
-    sudoku->gameover = (bool)false;
     sudoku->tamanho_tela = (tamanho_t){ 700, 500 };
-    sudoku->partidaIsOver = (bool)false;
+    sudoku->gameover = (bool)false;
+    sudoku->partida_is_over = (bool)false;
+    sudoku->numero_atual = (int)0;
+    for (int i = 0; i < 9; i++) {
+        for (int j = 0; j < 9; j++) {
+            sudoku->tabuleiro.celula[i][j].value = 0;
+        }
+    }
+}
+
+void processa_teclado_jogo(jogo *sudoku)
+{
+  char c = tela_tecla();
+  switch (c)
+  {
+    case 'w':
+        if (sudoku->numero_atual < 9) {
+            sudoku->numero_atual++;
+        }
+        break;
+
+    case 's':
+        if (sudoku->numero_atual > 0) {
+            sudoku->numero_atual--;
+        }
+        break;
+
+    default: 
+        //n acontece nd
+        break;
+  }
+
+}
+
+void processa_tempo(jogo *sudoku)
+{
+  sudoku->tempo_de_jogo = tela_relogio() - sudoku->data_inicio;
+}
+
+/*void processa_mouse(jogo *sudoku)
+{
+  // obtem estado do mouse
+  sudoku->mouse = tela_rato();
+  if (sudoku->mouse.clicado[0] && sudoku->mouse.posicao.x < 500 && sudoku->mouse.posicao.x > 150 && sudoku->mouse.posicao.y < 230 && sudoku->mouse.posicao.y > 50)
+  {
+    printf("Botão deu certo!!");
+  }
+
+}*/
+
+void processa_pontuacao(jogo *sudoku) {
+    sudoku->pontos = 1285 + 97418 * ( sudoku->tabuleiro.dificuldade + 1 ) / sudoku->tempo_de_jogo;
 }
 
 int main() 
@@ -140,20 +219,33 @@ int main()
     // inicializa a tela gráfica
     tela_inicio(sudoku.tamanho_tela, "Sudoku");
 
+    desenha_tela_inicio(&sudoku); 
+
     while(!sudoku.gameover) {
-        while(!sudoku.partidaIsOver) {
+        while(!sudoku.partida_is_over) {
             desenha_tela_jogo(&sudoku);
+            processa_teclado_jogo(&sudoku);
             // if (ganhou) {
             //     sudoku.partidaIsOver = true;
             // }
         }
+        processa_tempo(&sudoku);
+        processa_pontuacao(&sudoku);
+        // grava_record(&sudoku);
+        desenha_tela_play_again(&sudoku);
         // if (wannaPlayAgain) {
+        //     inicializa_jogo(&sudoku);    
         //     sudoku.partidaIsOver = false;
         // }
         // if(wannaQuit) {
         //     sudoku.gameover = true;
         // }
     }
+
+    desenha_tela_fim(&sudoku);
+
+    // encerra a tela gráfica
+    tela_fim();
 
 }
 
