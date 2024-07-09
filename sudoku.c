@@ -552,7 +552,7 @@ void le_player_name(jogo *sudoku)
         }
         else
         {
-            if (strlen(sudoku->player_atual.player_name) < 20)
+            if (strlen(sudoku->player_atual.player_name) < 10)
             {
                 sudoku->player_atual.player_name[strlen(sudoku->player_atual.player_name)] = c;
             }
@@ -569,8 +569,8 @@ void desenha_tela_inicio(jogo *sudoku)
         tela_texto((ponto_t){180, 160}, 80, branco, "SUDOKU");
         le_player_name(sudoku);
         tela_texto((ponto_t){235, 230}, 20, branco, "Enter the player name:");
-        tela_retangulo((retangulo_t){(ponto_t){210, 250}, (tamanho_t){280, 50}}, 3, branco, transparente);
-        tela_texto((ponto_t){230, 280}, 20, fucsia, sudoku->player_atual.player_name);
+        tela_retangulo((retangulo_t){(ponto_t){240, 250}, (tamanho_t){220, 50}}, 3, branco, transparente);
+        tela_texto((ponto_t){255, 280}, 20, fucsia, sudoku->player_atual.player_name);
 
         sudoku->mouse = tela_rato();
         desenha_botao(&start, branco, cinza);
@@ -586,23 +586,69 @@ void desenha_tela_inicio(jogo *sudoku)
     }
 }
 
-void imprime_score(vetor_de_recordes *records)
+void imprime_score(vetor_de_recordes *records, jogo *sudoku)
 {
-    tela_texto((ponto_t){100, 70}, 20, branco, "SCORE");
-    tela_texto((ponto_t){100, 100}, 20, branco, "Player:");
-    tela_texto((ponto_t){200, 100}, 20, branco, "Tabuleiro:");
-    tela_texto((ponto_t){350, 100}, 20, branco, "Pontos:");
-
-    for (int i = 0; i < records->quantidade; i++)
-    {
-        tela_texto((ponto_t){100, 130 + (30 * i)}, 20, branco, records->vetor[i].player_name);
-        char tab[10];
-        sprintf(tab, "%d", records->vetor[i].id_tab);
-        tela_texto((ponto_t){200, 130 + (30 * i)}, 20, branco, tab);
-        char score[10];
-        sprintf(score, "%d", records->vetor[i].pontos);
-        tela_texto((ponto_t){350, 130 + (30 * i)}, 20, branco, score);
+    tela_texto((ponto_t){210, 70}, 30, branco, "SCORE");
+    tela_texto((ponto_t){60, 120}, 20, branco, "Player:");
+    tela_texto((ponto_t){260, 120}, 20, branco, "Tabuleiro:");
+    tela_texto((ponto_t){400, 120}, 20, branco, "Pontos:");
+    int now;
+    for (int j = 0; j < records->quantidade; j++) {
+        if (records->vetor[j].pontos == sudoku->player_atual.pontos)
+        {
+            now = j;
+        }
     }
+    
+    if (records->quantidade <= 11 || now <= 11)
+    {
+        for (int i = 0; i < records->quantidade; i++)
+        {   
+            cor_t cor = branco;
+            if (sudoku->player_atual.pontos == records->vetor[i].pontos)
+            {
+                cor = fucsia;
+            }
+            char tab[10];
+            sprintf(tab, "%d", records->vetor[i].id_tab);
+            char score[10];
+            sprintf(score, "%d", records->vetor[i].pontos);
+            tela_texto((ponto_t){60, 150 + (30 * i)}, 20, cor, records->vetor[i].player_name);
+            tela_texto((ponto_t){260, 150 + (30 * i)}, 20,  cor, tab);
+            tela_texto((ponto_t){400, 150 + (30 * i)}, 20,  cor, score);
+            if (i == 10) break;
+        }
+    } else
+    {
+        for (int i = 0; i < 3; i++)
+        {   
+            char tab[10];
+            sprintf(tab, "%d", records->vetor[i].id_tab);
+            char score[10];
+            sprintf(score, "%d", records->vetor[i].pontos);
+            tela_texto((ponto_t){60, 150 + (30 * i)}, 20, branco, records->vetor[i].player_name);
+            tela_texto((ponto_t){260, 150 + (30 * i)}, 20,  branco, tab);
+            tela_texto((ponto_t){400, 150 + (30 * i)}, 20,  branco, score);
+        }
+        tela_texto((ponto_t){210, 300}, 50, branco, "...");
+        
+        for (int k = now - 1; k <= now + 1; k++)
+        {   
+            cor_t cor = branco;
+            if (sudoku->player_atual.pontos == records->vetor[k].pontos)
+            {
+                cor = fucsia;
+            }
+            char tab[10];
+            sprintf(tab, "%d", records->vetor[k].id_tab);
+            char score[10];
+            sprintf(score, "%d", records->vetor[k].pontos);
+            tela_texto((ponto_t){60, 320 + (30 * k)}, 20, cor, records->vetor[k].player_name);
+            tela_texto((ponto_t){260, 320 + (30 * k)}, 20,  cor, tab);
+            tela_texto((ponto_t){400, 320 + (30 * k)}, 20,  cor, score);
+        }
+    }
+    
 }
 
 void desenha_tela_play_again(jogo *sudoku, vetor_de_recordes *records)
@@ -614,7 +660,7 @@ void desenha_tela_play_again(jogo *sudoku, vetor_de_recordes *records)
         sudoku->mouse = tela_rato();
 
         // Score
-        imprime_score(records);
+        imprime_score(records, sudoku);
 
         // botao de play again
         atualiza_botao(&play_again, sudoku);
@@ -810,29 +856,16 @@ int main()
     while (!sudoku.gameover)
     {
         joga_partida(&sudoku);
-        vetor_de_recordes records = le_recordes();
-        grava_record_atual(&records, &sudoku);
-        desenha_tela_play_again(&sudoku, &records);
-        free(records.vetor);
+        if (!sudoku.gameover)
+        {
+            vetor_de_recordes records = le_recordes();
+            grava_record_atual(&records, &sudoku);
+            desenha_tela_play_again(&sudoku, &records);
+            free(records.vetor);
+        }
+        
     }
 
     // encerra a tela gráfica
     tela_fim();
 }
-
-// funcao que le arquivo e retorna um vetor de structs (INICO DO MAIN)
-// OUUU alocar com 1 a mais
-// ler o arquivo com o numero de entradas atual
-// struct do aruivo inteiro
-// struct de cada "entrada": nome ntabuleiro pontuacao
-
-// leitura do arquivo de tabuleiros
-// sortear :
-// le qtos tabs tem
-// sorteia um num entre 0 e os tabs q tem
-// chama uma funcao que le num vezes
-
-// sortear: le todos e deixa na memória e sorteia
-// sortear: deixar tds os numeros
-
-// EM QUALQUER CASO: funcao que recebe um arquivo ja aberto e retorna uma struct do próximo tabuleiro
