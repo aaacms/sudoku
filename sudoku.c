@@ -50,13 +50,15 @@ typedef struct
     double inicio;
 } notificacao;
 
-typedef struct {
+typedef struct
+{
     char player_name[10];
     int id_tab;
     int pontos;
 } player;
 
-typedef struct {
+typedef struct
+{
     int tamanho;    //"fixo" conforme o arquivo
     int quantidade; // vai aumentando conforme vai lendo
     player *vetor;
@@ -83,7 +85,6 @@ typedef struct
     rato_t mouse;
     notificacao notificacao[4];
     int pos_notif;
-    vetor_de_recordes *records;
 } jogo;
 
 typedef struct
@@ -196,80 +197,89 @@ tabuleiro sorteia_tabuleiro()
     return jogo;
 }
 
-void le_recordes(jogo *sudoku)
+void inicializa_vetor_de_recordes(vetor_de_recordes *records, int tam)
 {
-    // Alocar memória para armazenar os recordes, independente da existência do arquivo
-    sudoku->records = malloc(sizeof(vetor_de_recordes));
-    if (sudoku->records == NULL) {
-        error404("Falha na alocação de memória para os recordes.");
-        return;
+    records->tamanho = tam;
+    records->quantidade = 0;
+    records->vetor = malloc(tam * sizeof(player));
+    if (records->vetor == NULL)
+        error404("com a inicialização do vetor de records.");
+}
+
+player le_um_record(FILE *arq)
+{
+    player pl;
+    if (fscanf(arq, "%s %d %d", pl.player_name, &pl.id_tab, &pl.pontos) != 3)
+        error404("com a leitura de um record.");
+    return pl;
+}
+
+void insere_player_no_vetor(vetor_de_recordes *records, player pl)
+{
+    if (records->quantidade >= records->tamanho)
+        error404("com a inserção do player no vetor.");
+
+    records->vetor[records->quantidade] = pl;
+    records->quantidade++;
+}
+
+vetor_de_recordes le_recordes()
+{
+    FILE *arq;
+    arq = fopen("recordes.txt", "r");
+    if (arq == NULL)
+    {
+        error404("com a abertura do arquivo de recordes.");
     }
+    int n_records;
+    if (fscanf(arq, "%d", &n_records) != 1)
+        error404("com a leitura do arquivo de recordes."); // estava %n ???
 
-    // Inicializa os valores padrão
-    sudoku->records->tamanho = 0;
-    sudoku->records->quantidade = 0;
-    sudoku->records->vetor = NULL;
+    vetor_de_recordes records;
+    inicializa_vetor_de_recordes(&records, n_records + 1);
 
-    // Tentar abrir o arquivo
-    FILE *arq = fopen("recordes.txt", "r");
-    if (arq == NULL) {
-        return;  // Simplesmente retorna se o arquivo não existir
-    }
-
-    // Ler a quantidade de recordes
-    if (fscanf(arq, "%d", &(sudoku->records->tamanho)) != 1) {
-        fclose(arq);
-        error404("Erro na leitura do total de recordes.");
-        return;
-    }
-
-    if (sudoku->records->tamanho > 0) {
-        sudoku->records->vetor = malloc((sudoku->records->tamanho) * sizeof(player));
-        if (sudoku->records->vetor == NULL) {
-            fclose(arq);
-            error404("Falha na alocação de memória para vetor de recordes.");
-            return;
-        }
-
-        for (int i = 0; i < sudoku->records->tamanho; i++) {
-            if (fscanf(arq, "%s %d %d", 
-                       sudoku->records->vetor[i].player_name, 
-                       &sudoku->records->vetor[i].id_tab, 
-                       &sudoku->records->vetor[i].pontos) != 3) {
-                // Se não conseguir ler corretamente, assume que chegou ao final dos dados válidos
-                break;
-            }
-            sudoku->records->quantidade++;
-        }
+    for (int i = 0; i < n_records; i++)
+    {
+        player pl = le_um_record(arq);
+        insere_player_no_vetor(&records, pl);
     }
 
     fclose(arq);
+    return records;
 }
 
-
-/*void grava_pontuacao(jogo *sudoku)
+void grava_record_atual(vetor_de_recordes *records, jogo *sudoku)
 {
-    // Update the vector with the new score
-    sudoku->records->vetor[sudoku->records->quantidade].pontos = sudoku->pontos;
-    sudoku->records->quantidade++;
+    FILE *arq;
+    arq = fopen("recordes.txt", "w");
+    if (arq == NULL)
+    {
+        error404("com a abertura do arquivo de recordes.");
+    }
 
-    // Write the vector to the score file
-    FILE *score_file = fopen("score.txt", "w");
-    if (score_file == NULL)
+    fprintf(arq, "%d\n", records->quantidade + 1);
+
+    //imprimir no arquivo
+    bool adicionou = false;
+    for (int i = 0; i < records->quantidade; i++)
     {
-        error404("com a abertura do arquivo de pontuação.");
-        return;
+        if (!adicionou && sudoku->player_atual.pontos > records->vetor[i].pontos)
+        {
+            fprintf(arq, "%s %d %d\n", sudoku->player_atual.player_name, sudoku->player_atual.id_tab, sudoku->player_atual.pontos);
+            adicionou = true;
+        }
+        fprintf(arq, "%s %d %d\n", records->vetor[i].player_name, records->vetor[i].id_tab, records->vetor[i].pontos);
     }
-    fprintf(score_file, "%d\n", sudoku->records->tamanho);
-    fprintf(score_file, "%d\n", sudoku->records->quantidade);
-    for (int i = 0; i < sudoku->records->quantidade; i++)
+    if (!adicionou)
     {
-        fprintf(score_file, "%s\n", sudoku->records->vetor[i].player_name);
-        fprintf(score_file, "%d\n", sudoku->records->vetor[i].id_tab);
-        fprintf(score_file, "%d\n", sudoku->records->vetor[i].pontos);
+        fprintf(arq, "%s %d %d\n", sudoku->player_atual.player_name, sudoku->player_atual.id_tab, sudoku->player_atual.pontos);
     }
-    fclose(score_file);
-}*/
+    fclose(arq);
+
+    //atualizar vetor com a nova lista de records no aqrquivo
+    *records = le_recordes();
+    
+}
 
 void inicializa_jogo(jogo *sudoku)
 {
@@ -283,7 +293,6 @@ void inicializa_jogo(jogo *sudoku)
     sudoku->col_jogador = 0;
     strcpy(sudoku->player_atual.player_name, "");
     sudoku->player_atual.id_tab = sudoku->tabuleiro.id;
-    le_recordes(sudoku);
 }
 
 void imprime_mensagem(jogo *sudoku)
@@ -525,7 +534,7 @@ void le_player_name(jogo *sudoku)
     char c = tela_tecla();
     if (c != 0)
     {
-        if (c == '\n') 
+        if (c == '\n')
         {
             sudoku->data_inicio = tela_relogio();
             sudoku->play = false;
@@ -540,7 +549,7 @@ void le_player_name(jogo *sudoku)
         else if (c == ' ')
         {
             tela_texto((ponto_t){320, 315}, 10, fucsia, "Sem espaços!");
-        } 
+        }
         else
         {
             if (strlen(sudoku->player_atual.player_name) < 20)
@@ -577,26 +586,26 @@ void desenha_tela_inicio(jogo *sudoku)
     }
 }
 
-void imprime_score(jogo *sudoku)
+void imprime_score(vetor_de_recordes *records)
 {
     tela_texto((ponto_t){100, 70}, 20, branco, "SCORE");
     tela_texto((ponto_t){100, 100}, 20, branco, "Player:");
     tela_texto((ponto_t){200, 100}, 20, branco, "Tabuleiro:");
     tela_texto((ponto_t){350, 100}, 20, branco, "Pontos:");
 
-    for (int i = 0; i < sudoku->records->quantidade; i++)
+    for (int i = 0; i < records->quantidade; i++)
     {
-        tela_texto((ponto_t){100, 130 + (30 * i)}, 20, branco, sudoku->records->vetor[i].player_name);
+        tela_texto((ponto_t){100, 130 + (30 * i)}, 20, branco, records->vetor[i].player_name);
         char tab[10];
-        sprintf(tab, "%d", sudoku->records->vetor[i].id_tab);
+        sprintf(tab, "%d", records->vetor[i].id_tab);
         tela_texto((ponto_t){200, 130 + (30 * i)}, 20, branco, tab);
         char score[10];
-        sprintf(score, "%d", sudoku->records->vetor[i].pontos);
+        sprintf(score, "%d", records->vetor[i].pontos);
         tela_texto((ponto_t){350, 130 + (30 * i)}, 20, branco, score);
     }
 }
 
-void desenha_tela_play_again(jogo *sudoku)
+void desenha_tela_play_again(jogo *sudoku, vetor_de_recordes *records)
 {
     button play_again = cria_botao((ponto_t){500, 343}, (tamanho_t){150, 50}, "PlayAgain!");
     button quit = cria_botao((ponto_t){500, 403}, (tamanho_t){150, 50}, "Quit!");
@@ -604,8 +613,8 @@ void desenha_tela_play_again(jogo *sudoku)
     {
         sudoku->mouse = tela_rato();
 
-        //Score
-        imprime_score(sudoku);
+        // Score
+        imprime_score(records);
 
         // botao de play again
         atualiza_botao(&play_again, sudoku);
@@ -613,7 +622,10 @@ void desenha_tela_play_again(jogo *sudoku)
 
         if (play_again.estado_botao == clicado)
         {
+            char pl[10];
+            strcpy(pl, sudoku->player_atual.player_name);
             inicializa_jogo(sudoku);
+            strcpy(sudoku->player_atual.player_name, pl);
             sudoku->data_inicio = tela_relogio();
             sudoku->partida = true;
             sudoku->play_again = false;
@@ -769,11 +781,6 @@ void ganhou(jogo *sudoku)
     processa_tempo(sudoku);
     processa_pontuacao(sudoku);
     sudoku->play_again = true;
-    
-}
-
-void processa_records(jogo *sudoku) {
-
 }
 
 void joga_partida(jogo *sudoku)
@@ -793,7 +800,7 @@ int main()
     srand(time(NULL));
     jogo sudoku;
     sudoku.tamanho_tela = (tamanho_t){700, 500};
-    
+
     // inicializa a tela gráfica
     tela_inicio(sudoku.tamanho_tela, "Sudoku");
     inicializa_jogo(&sudoku);
@@ -803,12 +810,12 @@ int main()
     while (!sudoku.gameover)
     {
         joga_partida(&sudoku);
-        processa_pontuacao(&sudoku);
-        processa_records(&sudoku);
-        desenha_tela_play_again(&sudoku);
+        vetor_de_recordes records = le_recordes();
+        grava_record_atual(&records, &sudoku);
+        desenha_tela_play_again(&sudoku, &records);
+        free(records.vetor);
     }
 
-    free(sudoku.records->vetor);
     // encerra a tela gráfica
     tela_fim();
 }
