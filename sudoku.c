@@ -13,7 +13,6 @@
 #include <string.h>
 
 #define MARGEM 47
-double tempo_agora;
 
 // cria algumas cores globais
 cor_t fucsia = {1, 0.2, 0.8, 1};
@@ -51,13 +50,25 @@ typedef struct
     double inicio;
 } notificacao;
 
+typedef struct {
+    char player_name[10];
+    int id_tab;
+    int pontos;
+} player;
+
+typedef struct {
+    int tamanho;    //"fixo" conforme o arquivo
+    int quantidade; // vai aumentando conforme vai lendo
+    player *vetor;
+} vetor_de_recordes;
+
 typedef struct
 {
     // constantes, devem ser inicializadas antes da tela
     tamanho_t tamanho_tela;
     // necessários no início de cada partida
     tabuleiro tabuleiro;
-    char player_name[20];
+    player player_atual;
     bool play;
     bool gameover;
     bool partida;
@@ -72,10 +83,22 @@ typedef struct
     rato_t mouse;
     notificacao notificacao[4];
     int pos_notif;
+    vetor_de_recordes *records;
 } jogo;
 
-// função de erro
+typedef struct
+{
+    retangulo_t botao;
+    char texto[20];
+    enum
+    {
+        clicado,
+        emcima,
+        nada
+    } estado_botao;
+} button;
 
+// função de erro
 void error404(char msg[])
 {
     printf("\nAlgo de errado não está certo %s\n", msg);
@@ -163,24 +186,90 @@ vetor_de_tabuleiros le_tabuleiros(char nome[])
     return tabs;
 }
 
-void libera_vetor_de_tabuleiros(vetor_de_tabuleiros *tabs)
-{
-    if (tabs->vetor != NULL)
-    {
-        free(tabs->vetor);  // Libera a memória alocada para o vetor de tabuleiros
-        tabs->vetor = NULL; // Prevenir uso de ponteiro inválido após a liberação
-    }
-}
-
 tabuleiro sorteia_tabuleiro()
 {
     tabuleiro jogo;
     vetor_de_tabuleiros vector = le_tabuleiros("tabuleiros.txt");
     int number = sorteia_numero(vector.tamanho - 1);
     jogo = vector.vetor[number];
-    libera_vetor_de_tabuleiros(&vector);
+    free(vector.vetor);
     return jogo;
 }
+
+void le_recordes(jogo *sudoku)
+{
+    // Alocar memória para armazenar os recordes, independente da existência do arquivo
+    sudoku->records = malloc(sizeof(vetor_de_recordes));
+    if (sudoku->records == NULL) {
+        error404("Falha na alocação de memória para os recordes.");
+        return;
+    }
+
+    // Inicializa os valores padrão
+    sudoku->records->tamanho = 0;
+    sudoku->records->quantidade = 0;
+    sudoku->records->vetor = NULL;
+
+    // Tentar abrir o arquivo
+    FILE *arq = fopen("recordes.txt", "r");
+    if (arq == NULL) {
+        return;  // Simplesmente retorna se o arquivo não existir
+    }
+
+    // Ler a quantidade de recordes
+    if (fscanf(arq, "%d", &(sudoku->records->tamanho)) != 1) {
+        fclose(arq);
+        error404("Erro na leitura do total de recordes.");
+        return;
+    }
+
+    if (sudoku->records->tamanho > 0) {
+        sudoku->records->vetor = malloc((sudoku->records->tamanho) * sizeof(player));
+        if (sudoku->records->vetor == NULL) {
+            fclose(arq);
+            error404("Falha na alocação de memória para vetor de recordes.");
+            return;
+        }
+
+        for (int i = 0; i < sudoku->records->tamanho; i++) {
+            if (fscanf(arq, "%s %d %d", 
+                       sudoku->records->vetor[i].player_name, 
+                       &sudoku->records->vetor[i].id_tab, 
+                       &sudoku->records->vetor[i].pontos) != 3) {
+                // Se não conseguir ler corretamente, assume que chegou ao final dos dados válidos
+                break;
+            }
+            sudoku->records->quantidade++;
+        }
+    }
+
+    fclose(arq);
+}
+
+
+/*void grava_pontuacao(jogo *sudoku)
+{
+    // Update the vector with the new score
+    sudoku->records->vetor[sudoku->records->quantidade].pontos = sudoku->pontos;
+    sudoku->records->quantidade++;
+
+    // Write the vector to the score file
+    FILE *score_file = fopen("score.txt", "w");
+    if (score_file == NULL)
+    {
+        error404("com a abertura do arquivo de pontuação.");
+        return;
+    }
+    fprintf(score_file, "%d\n", sudoku->records->tamanho);
+    fprintf(score_file, "%d\n", sudoku->records->quantidade);
+    for (int i = 0; i < sudoku->records->quantidade; i++)
+    {
+        fprintf(score_file, "%s\n", sudoku->records->vetor[i].player_name);
+        fprintf(score_file, "%d\n", sudoku->records->vetor[i].id_tab);
+        fprintf(score_file, "%d\n", sudoku->records->vetor[i].pontos);
+    }
+    fclose(score_file);
+}*/
 
 void inicializa_jogo(jogo *sudoku)
 {
@@ -189,10 +278,12 @@ void inicializa_jogo(jogo *sudoku)
     sudoku->partida = (bool)true;
     sudoku->play_again = (bool)false;
     sudoku->numero_atual = (int)0;
-    // sudoku->data_inicio = tela_relogio(); da segmentation fault n sei pq
     sudoku->tabuleiro = sorteia_tabuleiro();
     sudoku->lin_jogador = 0;
     sudoku->col_jogador = 0;
+    strcpy(sudoku->player_atual.player_name, "");
+    sudoku->player_atual.id_tab = sudoku->tabuleiro.id;
+    le_recordes(sudoku);
 }
 
 void imprime_mensagem(jogo *sudoku)
@@ -277,18 +368,6 @@ void grava_numero_no_tabuleiro(jogo *sudoku)
     }
 }
 
-typedef struct
-{
-    retangulo_t botao;
-    char texto[20];
-    enum
-    {
-        clicado,
-        emcima,
-        nada
-    } estado_botao;
-} button;
-
 button cria_botao(ponto_t ponto, tamanho_t tamanho, char *texto)
 {
     button b;
@@ -299,12 +378,23 @@ button cria_botao(ponto_t ponto, tamanho_t tamanho, char *texto)
     return b;
 }
 
-void estado_botao(button *b, rato_t mouse)
-{ // Adiciona mouse como parâmetro
-    if (mouse.posicao.x >= b->botao.inicio.x && mouse.posicao.x <= b->botao.inicio.x + b->botao.tamanho.largura &&
-        mouse.posicao.y >= b->botao.inicio.y && mouse.posicao.y <= b->botao.inicio.y + b->botao.tamanho.altura)
+void desenha_botao(button *b, cor_t cor_base, cor_t cor_emcima)
+{
+    cor_t cor_atual = cor_base;
+    if (b->estado_botao == emcima)
     {
-        if (mouse.clicado[0])
+        cor_atual = cor_emcima;
+    }
+    tela_retangulo(b->botao, 2, preto, cor_atual);
+    tela_texto((ponto_t){b->botao.inicio.x + 15, b->botao.inicio.y + 30}, 20, preto, b->texto);
+}
+
+void atualiza_botao(button *b, jogo *sudoku)
+{
+    if (sudoku->mouse.posicao.x >= b->botao.inicio.x && sudoku->mouse.posicao.x <= b->botao.inicio.x + b->botao.tamanho.largura &&
+        sudoku->mouse.posicao.y >= b->botao.inicio.y && sudoku->mouse.posicao.y <= b->botao.inicio.y + b->botao.tamanho.altura)
+    {
+        if (sudoku->mouse.clicado[0])
         {
             b->estado_botao = clicado;
         }
@@ -317,27 +407,6 @@ void estado_botao(button *b, rato_t mouse)
     {
         b->estado_botao = nada;
     }
-}
-
-void desenha_botao(button *b, cor_t cor_base, cor_t cor_emcima, cor_t cor_clicado)
-{
-    cor_t cor_atual = cor_base;
-    if (b->estado_botao == emcima)
-    {
-        cor_atual = cor_emcima;
-    }
-    else if (b->estado_botao == clicado)
-    {
-        cor_atual = cor_clicado;
-    }
-    tela_retangulo(b->botao, 2, preto, cor_atual);
-    tela_texto((ponto_t){b->botao.inicio.x + b->botao.tamanho.largura / 2, b->botao.inicio.y + b->botao.tamanho.altura / 2}, 20, preto, b->texto);
-}
-
-void atualiza_botao(button *b)
-{
-    rato_t mouse = tela_rato();
-    estado_botao(b, mouse);
 }
 
 void desenha_numeros(jogo *sudoku)
@@ -439,51 +508,127 @@ void desenha_tela_jogo(jogo *sudoku)
 
     // botao de desistir
     button quit = cria_botao((ponto_t){500, 403}, (tamanho_t){150, 50}, "Quit!");
-    atualiza_botao(&quit);                            // Atualiza o estado do botão com a posição do mouse
-    desenha_botao(&quit, branco, vermelho, vermelho); // Desenha com as cores base, em cima e clicado
+    atualiza_botao(&quit, sudoku);
+    desenha_botao(&quit, branco, cinza);
 
     if (quit.estado_botao == clicado)
     {
-        exit(0); // Sai do jogo se o botão for clicado
+        sudoku->partida = false;
+        sudoku->gameover = true;
     }
 
     tela_atualiza();
 }
 
+void le_player_name(jogo *sudoku)
+{
+    char c = tela_tecla();
+    if (c != 0)
+    {
+        if (c == '\n') 
+        {
+            sudoku->data_inicio = tela_relogio();
+            sudoku->play = false;
+        }
+        else if (c == '\b')
+        {
+            if (strlen(sudoku->player_atual.player_name) > 0)
+            {
+                sudoku->player_atual.player_name[strlen(sudoku->player_atual.player_name) - 1] = '\0';
+            }
+        }
+        else if (c == ' ')
+        {
+            tela_texto((ponto_t){320, 315}, 10, fucsia, "Sem espaços!");
+        } 
+        else
+        {
+            if (strlen(sudoku->player_atual.player_name) < 20)
+            {
+                sudoku->player_atual.player_name[strlen(sudoku->player_atual.player_name)] = c;
+            }
+        }
+    }
+}
+
 void desenha_tela_inicio(jogo *sudoku)
 {
+    button start = cria_botao((ponto_t){275, 330}, (tamanho_t){150, 50}, "Play! [Enter]");
     while (sudoku->play)
     {
+        tela_texto((ponto_t){290, 70}, 20, branco, "Welcome to");
+        tela_texto((ponto_t){180, 160}, 80, branco, "SUDOKU");
+        le_player_name(sudoku);
+        tela_texto((ponto_t){235, 230}, 20, branco, "Enter the player name:");
+        tela_retangulo((retangulo_t){(ponto_t){210, 250}, (tamanho_t){280, 50}}, 3, branco, transparente);
+        tela_texto((ponto_t){230, 280}, 20, fucsia, sudoku->player_atual.player_name);
 
-        button start = cria_botao((ponto_t){275, 225}, (tamanho_t){150, 50}, "Play!");
-        atualiza_botao(&start);
-        desenha_botao(&start, branco, fucsia, fucsia);
+        sudoku->mouse = tela_rato();
+        desenha_botao(&start, branco, cinza);
+        atualiza_botao(&start, sudoku);
 
         if (start.estado_botao == clicado)
         {
+            sudoku->data_inicio = tela_relogio();
             sudoku->play = false;
         }
+
         tela_atualiza();
+    }
+}
+
+void imprime_score(jogo *sudoku)
+{
+    tela_texto((ponto_t){100, 70}, 20, branco, "SCORE");
+    tela_texto((ponto_t){100, 100}, 20, branco, "Player:");
+    tela_texto((ponto_t){200, 100}, 20, branco, "Tabuleiro:");
+    tela_texto((ponto_t){350, 100}, 20, branco, "Pontos:");
+
+    for (int i = 0; i < sudoku->records->quantidade; i++)
+    {
+        tela_texto((ponto_t){100, 130 + (30 * i)}, 20, branco, sudoku->records->vetor[i].player_name);
+        char tab[10];
+        sprintf(tab, "%d", sudoku->records->vetor[i].id_tab);
+        tela_texto((ponto_t){200, 130 + (30 * i)}, 20, branco, tab);
+        char score[10];
+        sprintf(score, "%d", sudoku->records->vetor[i].pontos);
+        tela_texto((ponto_t){350, 130 + (30 * i)}, 20, branco, score);
     }
 }
 
 void desenha_tela_play_again(jogo *sudoku)
 {
+    button play_again = cria_botao((ponto_t){500, 343}, (tamanho_t){150, 50}, "PlayAgain!");
+    button quit = cria_botao((ponto_t){500, 403}, (tamanho_t){150, 50}, "Quit!");
     while (sudoku->play_again)
     {
-        button play_again = cria_botao((ponto_t){275, 225}, (tamanho_t){150, 50}, "PlayAgain!");
-        atualiza_botao(&play_again);
-        desenha_botao(&play_again, branco, fucsia, fucsia);
+        sudoku->mouse = tela_rato();
+
+        //Score
+        imprime_score(sudoku);
+
+        // botao de play again
+        atualiza_botao(&play_again, sudoku);
+        desenha_botao(&play_again, branco, cinza);
 
         if (play_again.estado_botao == clicado)
         {
             inicializa_jogo(sudoku);
+            sudoku->data_inicio = tela_relogio();
             sudoku->partida = true;
             sudoku->play_again = false;
         }
-        // if (wannaQuit) {
-        //     sudoku.gameover = true;
-        // }
+
+        // botao de desistir
+        atualiza_botao(&quit, sudoku);
+        desenha_botao(&quit, branco, cinza);
+
+        if (quit.estado_botao == clicado)
+        {
+            sudoku->play_again = false;
+            sudoku->gameover = true;
+        }
+
         tela_atualiza();
     }
 }
@@ -607,7 +752,7 @@ void processa_tempo(jogo *sudoku)
 
 void processa_pontuacao(jogo *sudoku)
 {
-    sudoku->pontos = 1285 + 97418 * (sudoku->tabuleiro.dificuldade + 1) / sudoku->tempo_de_jogo;
+    sudoku->player_atual.pontos = (1285 + (97418 * (sudoku->tabuleiro.dificuldade + 1))) / sudoku->tempo_de_jogo;
 }
 
 void ganhou(jogo *sudoku)
@@ -621,13 +766,21 @@ void ganhou(jogo *sudoku)
         }
     }
     sudoku->partida = false;
+    processa_tempo(sudoku);
+    processa_pontuacao(sudoku);
     sudoku->play_again = true;
+    
+}
+
+void processa_records(jogo *sudoku) {
+
 }
 
 void joga_partida(jogo *sudoku)
 {
     while (sudoku->partida)
     {
+        sudoku->mouse = tela_rato();
         processa_teclado_jogo(sudoku);
         imprime_mensagem(sudoku);
         desenha_tela_jogo(sudoku);
@@ -640,22 +793,22 @@ int main()
     srand(time(NULL));
     jogo sudoku;
     sudoku.tamanho_tela = (tamanho_t){700, 500};
-    inicializa_jogo(&sudoku);
-
+    
     // inicializa a tela gráfica
     tela_inicio(sudoku.tamanho_tela, "Sudoku");
+    inicializa_jogo(&sudoku);
 
     desenha_tela_inicio(&sudoku);
 
     while (!sudoku.gameover)
     {
         joga_partida(&sudoku);
-        processa_tempo(&sudoku);
         processa_pontuacao(&sudoku);
-        // grava_record(&sudoku);
+        processa_records(&sudoku);
         desenha_tela_play_again(&sudoku);
     }
 
+    free(sudoku.records->vetor);
     // encerra a tela gráfica
     tela_fim();
 }
