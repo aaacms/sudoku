@@ -1,8 +1,12 @@
 <h1>Sudoku</h1>
-<p>Jogo desenvolvido nas aulas de Laboratório de Programação I nas UFSM, com o professor Benhur Stein.</p>
-<p>O programa utiliza-se do arquivo telag2.c, desenvolvido pelo professor para auxiliar no desenvolvimento do jogo.</p>
-<h2>Rodando o programa e dependências.</h2>
+<p>Este jogo foi desenvolvido nas aulas de Laboratório de Programação I, curso de Sistemas de Informação, UFSM, com o professor Benhur Stein.</p>
+<p>O programa utiliza-se do arquivo telag2.c, desenvolvido pelo professor para auxiliar no desenvolvimento do jogo.\n</p>
+<h2>Rodando o programa e dependências</h2>
 <p>O jogo foi desenvolvido em um ambiente Linux (WSL - Ubuntu) e faz uso da biblioteca <url href="https://www.ufsm.br/pet/sistemas-de-informacao/2018/08/28/como-instalar-o-allegro-5">Allegro 5</url>.</p>
+<ul>
+  <li>Compilação manual: <b>gcc -Wall -o sudoku sudoku.c telag2.c -lallegro_font -lallegro_color -lallegro_ttf -lallegro_primitives -lallegro</b></li>
+  <li>Para executar: <b>./sudoku</b></li>
+</ul>
 <h2>Como jogar?</h2>
 <p>Basicamente, o jogo funciona com comandos do teclado, e os botões com os clicks do mouse.</p>
 <ul>
