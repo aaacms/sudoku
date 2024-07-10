@@ -1,6 +1,6 @@
 <h1>Sudoku</h1>
 <p>Este jogo foi desenvolvido nas aulas de Laboratório de Programação I, curso de Sistemas de Informação, UFSM, com o professor Benhur Stein.</p>
-<p>O programa utiliza-se do arquivo telag2.c, desenvolvido pelo professor para auxiliar no desenvolvimento do jogo.\n</p>
+<p>O programa utiliza-se do arquivo <b>telag2.c</b>, desenvolvido pelo professor para auxiliar no desenvolvimento do jogo.</p>
 <h2>Rodando o programa e dependências</h2>
 <p>O jogo foi desenvolvido em um ambiente Linux (WSL - Ubuntu) e faz uso da biblioteca <a href="https://www.ufsm.br/pet/sistemas-de-informacao/2018/08/28/como-instalar-o-allegro-5">Allegro 5</a>.</p>
 <ul>
