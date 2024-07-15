@@ -126,13 +126,16 @@ void inicializa_vetor_de_tabuleiros(vetor_de_tabuleiros *tabs, int tam)
 tabuleiro le_um_tabuleiro(FILE *arq)
 {
     tabuleiro tab;
-    fscanf(arq, "%d", &tab.id);
-    fscanf(arq, "%d", &tab.dificuldade);
+    if (fscanf(arq, "%d", &tab.id) != 1)
+        error404("com a leitura do ID do tabuleiro.");
+    if (fscanf(arq, "%d", &tab.dificuldade) != 1)
+        error404("com a leitura da dificuldade do tabuleiro.");
     for (int i = 0; i < 9; i++)
     {
         for (int j = 0; j < 9; j++)
         {
-            fscanf(arq, "%d", &tab.celula[i][j].value);
+            if (fscanf(arq, "%d", &tab.celula[i][j].value) != 1)
+                error404("com a leitura de uma célula do tabuleiro.");
         }
     }
     return tab;
@@ -146,17 +149,10 @@ void insere_tabuleiro_no_vetor(vetor_de_tabuleiros *tabs, tabuleiro tab)
     {
         for (int j = 0; j < 9; j++)
         {
-            if (tab.celula[i][j].value == 0)
+            tab.celula[i][j].changeable = (tab.celula[i][j].value == 0);
+            for (int k = 0; k < 9; k++)
             {
-                tab.celula[i][j].changeable = true;
-                for (int k = 0; k < 9; k++)
-                {
-                    tab.celula[i][j].mark[k] = false;
-                }
-            }
-            else
-            {
-                tab.celula[i][j].changeable = false;
+                tab.celula[i][j].mark[k] = false;
             }
         }
     }
@@ -170,6 +166,7 @@ vetor_de_tabuleiros le_tabuleiros(char nome[])
     arq = fopen(nome, "r");
     if (arq == NULL)
         error404("com a abertura do arquivo de tabuleiros.");
+
     int n_tabs;
     if (fscanf(arq, "%d", &n_tabs) != 1)
         error404("com a leitura do arquivo de tabuleiros."); // estava %n ???
@@ -189,10 +186,16 @@ vetor_de_tabuleiros le_tabuleiros(char nome[])
 
 tabuleiro sorteia_tabuleiro()
 {
-    tabuleiro jogo;
     vetor_de_tabuleiros vector = le_tabuleiros("tabuleiros.txt");
+    if (vector.quantidade == 0)
+    {
+        error404(": não há nenhum tabuleiro disponível.");
+        tabuleiro tab_vazio = {0};
+        return tab_vazio;
+    }
+
     int number = sorteia_numero(vector.tamanho - 1);
-    jogo = vector.vetor[number];
+    tabuleiro jogo = vector.vetor[number];
     free(vector.vetor);
     return jogo;
 }
@@ -253,13 +256,11 @@ void grava_record_atual(vetor_de_recordes *records, jogo *sudoku)
     FILE *arq;
     arq = fopen("recordes.txt", "w");
     if (arq == NULL)
-    {
         error404("com a abertura do arquivo de recordes.");
-    }
 
     fprintf(arq, "%d\n", records->quantidade + 1);
 
-    //imprimir no arquivo
+    // imprimir no arquivo
     bool adicionou = false;
     for (int i = 0; i < records->quantidade; i++)
     {
@@ -276,9 +277,8 @@ void grava_record_atual(vetor_de_recordes *records, jogo *sudoku)
     }
     fclose(arq);
 
-    //atualizar vetor com a nova lista de records no aqrquivo
+    // atualizar vetor com a nova lista de records no aqrquivo
     *records = le_recordes();
-    
 }
 
 void inicializa_jogo(jogo *sudoku)
@@ -554,7 +554,9 @@ void le_player_name(jogo *sudoku)
         {
             if (strlen(sudoku->player_atual.player_name) < 10)
             {
-                sudoku->player_atual.player_name[strlen(sudoku->player_atual.player_name)] = c;
+                size_t len = strlen(sudoku->player_atual.player_name);
+                sudoku->player_atual.player_name[len] = c;
+                sudoku->player_atual.player_name[len + 1] = '\0';
             }
         }
     }
@@ -593,17 +595,18 @@ void imprime_score(vetor_de_recordes *records, jogo *sudoku)
     tela_texto((ponto_t){260, 120}, 20, branco, "Tabuleiro:");
     tela_texto((ponto_t){400, 120}, 20, branco, "Pontos:");
     int now;
-    for (int j = 0; j < records->quantidade; j++) {
+    for (int j = 0; j < records->quantidade; j++)
+    {
         if (records->vetor[j].pontos == sudoku->player_atual.pontos)
         {
             now = j;
         }
     }
-    
+
     if (records->quantidade <= 11 || now <= 11)
     {
         for (int i = 0; i < records->quantidade; i++)
-        {   
+        {
             cor_t cor = branco;
             if (sudoku->player_atual.pontos == records->vetor[i].pontos)
             {
@@ -614,26 +617,28 @@ void imprime_score(vetor_de_recordes *records, jogo *sudoku)
             char score[10];
             sprintf(score, "%d", records->vetor[i].pontos);
             tela_texto((ponto_t){60, 150 + (30 * i)}, 20, cor, records->vetor[i].player_name);
-            tela_texto((ponto_t){260, 150 + (30 * i)}, 20,  cor, tab);
-            tela_texto((ponto_t){400, 150 + (30 * i)}, 20,  cor, score);
-            if (i == 10) break;
+            tela_texto((ponto_t){260, 150 + (30 * i)}, 20, cor, tab);
+            tela_texto((ponto_t){400, 150 + (30 * i)}, 20, cor, score);
+            if (i == 10)
+                break;
         }
-    } else
+    }
+    else
     {
         for (int i = 0; i < 3; i++)
-        {   
+        {
             char tab[10];
             sprintf(tab, "%d", records->vetor[i].id_tab);
             char score[10];
             sprintf(score, "%d", records->vetor[i].pontos);
             tela_texto((ponto_t){60, 150 + (30 * i)}, 20, branco, records->vetor[i].player_name);
-            tela_texto((ponto_t){260, 150 + (30 * i)}, 20,  branco, tab);
-            tela_texto((ponto_t){400, 150 + (30 * i)}, 20,  branco, score);
+            tela_texto((ponto_t){260, 150 + (30 * i)}, 20, branco, tab);
+            tela_texto((ponto_t){400, 150 + (30 * i)}, 20, branco, score);
         }
         tela_texto((ponto_t){210, 300}, 50, branco, "...");
-        
+
         for (int k = now - 1; k <= now + 1; k++)
-        {   
+        {
             cor_t cor = branco;
             if (sudoku->player_atual.pontos == records->vetor[k].pontos)
             {
@@ -644,11 +649,10 @@ void imprime_score(vetor_de_recordes *records, jogo *sudoku)
             char score[10];
             sprintf(score, "%d", records->vetor[k].pontos);
             tela_texto((ponto_t){60, 320 + (30 * k)}, 20, cor, records->vetor[k].player_name);
-            tela_texto((ponto_t){260, 320 + (30 * k)}, 20,  cor, tab);
-            tela_texto((ponto_t){400, 320 + (30 * k)}, 20,  cor, score);
+            tela_texto((ponto_t){260, 320 + (30 * k)}, 20, cor, tab);
+            tela_texto((ponto_t){400, 320 + (30 * k)}, 20, cor, score);
         }
     }
-    
 }
 
 void desenha_tela_play_again(jogo *sudoku, vetor_de_recordes *records)
@@ -863,7 +867,6 @@ int main()
             desenha_tela_play_again(&sudoku, &records);
             free(records.vetor);
         }
-        
     }
 
     // encerra a tela gráfica
