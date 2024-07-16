@@ -22,3 +22,9 @@
   <li>0 => coloca o número atual no modo de "apagar";</li>
   <li>1, 2, 3, 4, 5, 6, 7, 8 e 9 => controlam qual será o número atual.</li>
 </ul>
+<h2>Imagens</h2>
+<p>Seguem abaixo algumas imagens da interface do jogo.</p>
+<a href="img/cover.png"></a>
+<a href="img/game_screen.png"></a>
+<a href="img/playing_screen.png"></a>
+<a href="img/score.png"></a>
