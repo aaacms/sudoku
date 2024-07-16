@@ -4,7 +4,6 @@
 // ./sudoku
 
 #include "telag2.h"
-#include "tabuleiros.h"
 
 #include <stdio.h>
 #include <stdbool.h>
