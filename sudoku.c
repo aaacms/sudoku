@@ -1,4 +1,4 @@
-// para compilar este programa manualmente em linux:
+// compilação manual em linux:
 // gcc -Wall -o sudoku sudoku.c telag2.c -lallegro_font -lallegro_color -lallegro_ttf -lallegro_primitives -lallegro
 // para executar:
 // ./sudoku
@@ -13,8 +13,8 @@
 #include <string.h>
 
 #define MARGEM 47
+#define GRID_SIZE 9
 
-// cria algumas cores globais
 cor_t fucsia = {1, 0.2, 0.8, 1};
 cor_t transparente = {0, 0, 0, 0};
 cor_t preto = {0, 0, 0, 1};
@@ -27,20 +27,20 @@ typedef struct
 {
     int value;
     bool changeable;
-    bool mark[9];
+    bool mark[GRID_SIZE];
 } celula;
 
 typedef struct
 {
-    celula celula[9][9];
+    celula celula[GRID_SIZE][GRID_SIZE];
     int id;
     int dificuldade;
 } tabuleiro;
 
 typedef struct
 {
-    int tamanho;    //"fixo" conforme o arquivo
-    int quantidade; // vai aumentando conforme vai lendo
+    int tamanho;
+    int quantidade;
     tabuleiro *vetor;
 } vetor_de_tabuleiros;
 
@@ -59,8 +59,8 @@ typedef struct
 
 typedef struct
 {
-    int tamanho;    //"fixo" conforme o arquivo
-    int quantidade; // vai aumentando conforme vai lendo
+    int tamanho;
+    int quantidade;
     player *vetor;
 } vetor_de_recordes;
 
@@ -109,9 +109,9 @@ int sorteia_numero(int x)
 {
     if (x < 0)
     {
-        return 0; // Retorna 0 se x for negativo, para evitar comportamento indefinido
+        return 0;
     }
-    return rand() % (x + 1); // Retorna um número entre 0 e x, inclusive
+    return rand() % (x + 1);
 }
 
 void inicializa_vetor_de_tabuleiros(vetor_de_tabuleiros *tabs, int tam)
@@ -130,9 +130,9 @@ tabuleiro le_um_tabuleiro(FILE *arq)
         error404("com a leitura do ID do tabuleiro.");
     if (fscanf(arq, "%d", &tab.dificuldade) != 1)
         error404("com a leitura da dificuldade do tabuleiro.");
-    for (int i = 0; i < 9; i++)
+    for (int i = 0; i < GRID_SIZE; i++)
     {
-        for (int j = 0; j < 9; j++)
+        for (int j = 0; j < GRID_SIZE; j++)
         {
             if (fscanf(arq, "%d", &tab.celula[i][j].value) != 1)
                 error404("com a leitura de uma célula do tabuleiro.");
@@ -145,9 +145,9 @@ void insere_tabuleiro_no_vetor(vetor_de_tabuleiros *tabs, tabuleiro tab)
 {
     if (tabs->quantidade >= tabs->tamanho)
         error404("com a inserção do tabuleiro no vetor.");
-    for (int i = 0; i < 9; i++)
+    for (int i = 0; i < GRID_SIZE; i++)
     {
-        for (int j = 0; j < 9; j++)
+        for (int j = 0; j < GRID_SIZE; j++)
         {
             tab.celula[i][j].changeable = (tab.celula[i][j].value == 0);
             for (int k = 0; k < 9; k++)
@@ -169,7 +169,7 @@ vetor_de_tabuleiros le_tabuleiros(char nome[])
 
     int n_tabs;
     if (fscanf(arq, "%d", &n_tabs) != 1)
-        error404("com a leitura do arquivo de tabuleiros."); // estava %n ???
+        error404("com a leitura do arquivo de tabuleiros.");
 
     vetor_de_tabuleiros tabs;
     inicializa_vetor_de_tabuleiros(&tabs, n_tabs);
@@ -226,17 +226,31 @@ void insere_player_no_vetor(vetor_de_recordes *records, player pl)
     records->quantidade++;
 }
 
+void arquivo_records_inexistente()
+{
+    FILE *arq;
+    arq = fopen("recordes.txt", "w");
+    if (arq == NULL)
+        error404("com a criação do arquivo de recordes.");
+    fprintf(arq, "0\n");
+    fclose(arq);
+}
+
 vetor_de_recordes le_recordes()
 {
     FILE *arq;
     arq = fopen("recordes.txt", "r");
     if (arq == NULL)
     {
-        error404("com a abertura do arquivo de recordes.");
+        arquivo_records_inexistente();
+        arq = fopen("recordes.txt", "r");
+        if (arq == NULL)
+            error404("com a abertura do arquivo de recordes.");
     }
+
     int n_records;
     if (fscanf(arq, "%d", &n_records) != 1)
-        error404("com a leitura do arquivo de recordes."); // estava %n ???
+        error404("com a leitura do arquivo de recordes.");
 
     vetor_de_recordes records;
     inicializa_vetor_de_recordes(&records, n_records + 1);
@@ -256,7 +270,7 @@ void grava_record_atual(vetor_de_recordes *records, jogo *sudoku)
     FILE *arq;
     arq = fopen("recordes.txt", "w");
     if (arq == NULL)
-        error404("com a abertura do arquivo de recordes.");
+        error404("com a abertura do arquivo de recordes para escrita.");
 
     fprintf(arq, "%d\n", records->quantidade + 1);
 
@@ -277,7 +291,7 @@ void grava_record_atual(vetor_de_recordes *records, jogo *sudoku)
     }
     fclose(arq);
 
-    // atualizar vetor com a nova lista de records no aqrquivo
+    // atualizar vetor com a nova lista de records no arquivo
     *records = le_recordes();
 }
 
@@ -333,8 +347,8 @@ void grava_numero_no_tabuleiro(jogo *sudoku)
 
     if (sudoku->tabuleiro.celula[linha][coluna].changeable)
     {
-        // verifica se o numero ja existe na coluna
-        for (int i = 0; i < 9; i++)
+        // verifica coluna
+        for (int i = 0; i < GRID_SIZE; i++)
         {
             if (sudoku->tabuleiro.celula[i][coluna].value == sudoku->numero_atual && sudoku->tabuleiro.celula[i][coluna].value != 0)
             {
@@ -343,8 +357,8 @@ void grava_numero_no_tabuleiro(jogo *sudoku)
             }
         }
 
-        // verifica se o numero ja existe na linha
-        for (int j = 0; j < 9; j++)
+        // verifica linha
+        for (int j = 0; j < GRID_SIZE; j++)
         {
             if (sudoku->tabuleiro.celula[linha][j].value == sudoku->numero_atual && sudoku->tabuleiro.celula[linha][j].value != 0)
             {
@@ -353,12 +367,12 @@ void grava_numero_no_tabuleiro(jogo *sudoku)
             }
         }
 
-        // verifica se o número ja existe no quadrado 3x3
+        // verifica quadrado 3x3
         int startlinha = linha - linha % 3;
         int startcoluna = coluna - coluna % 3;
-        for (int i = startlinha; i < startlinha + 3; i++)
+        for (int i = startlinha; i < (startlinha + 3); i++)
         {
-            for (int j = startcoluna; j < startcoluna + 3; j++)
+            for (int j = startcoluna; j < (startcoluna + 3); j++)
             {
                 if (sudoku->tabuleiro.celula[i][j].value == sudoku->numero_atual && sudoku->tabuleiro.celula[i][j].value != 0)
                 {
@@ -368,7 +382,7 @@ void grava_numero_no_tabuleiro(jogo *sudoku)
             }
         }
 
-        // se passou por todas as verificacoes, insire o numero
+        // se passou por todas as verificacoes, insere o numero
         sudoku->tabuleiro.celula[linha][coluna].value = sudoku->numero_atual;
     }
     else
@@ -382,7 +396,7 @@ button cria_botao(ponto_t ponto, tamanho_t tamanho, char *texto)
     button b;
     b.botao.inicio = ponto;
     b.botao.tamanho = tamanho;
-    strcpy(b.texto, texto); // Corrigido para usar strcpy
+    strcpy(b.texto, texto);
     b.estado_botao = nada;
     return b;
 }
@@ -420,9 +434,9 @@ void atualiza_botao(button *b, jogo *sudoku)
 
 void desenha_numeros(jogo *sudoku)
 {
-    for (int i = 0; i < 9; i++)
+    for (int i = 0; i < GRID_SIZE; i++)
     {
-        for (int j = 0; j < 9; j++)
+        for (int j = 0; j < GRID_SIZE; j++)
         {
             if (sudoku->tabuleiro.celula[i][j].value > 0)
             {
@@ -439,33 +453,32 @@ void desenha_numeros(jogo *sudoku)
             }
             else
             {
-                for (int k = 0; k < 9; k++)
+                for (int k = 0; k < GRID_SIZE; k++)
                 {
                     char num[2];
                     sprintf(num, "%d", k + 1);
-                    // Calcula a posição relativa dentro do quadrado 3x3
-                    int offsetX = (k % 3) * 11; // Deslocamento horizontal, 3 números por linha
-                    int offsetY = (k / 3) * 11; // Deslocamento vertical, 3 linhas
 
-                    // Posição de início ajustada pelo deslocamento calculado
+                    int offsetX = (k % 3) * 11;
+                    int offsetY = (k / 3) * 11;
+
+                    // posição de inicio
                     int posX = MARGEM + (45 * j) + 8 + offsetX;
                     int posY = MARGEM + (45 * i) + 14 + offsetY;
 
-                    // Desenha o número na posição calculada
+                    // desenha o numero
                     tela_texto((ponto_t){posX, posY}, 10, cinza, num);
 
                     if (sudoku->tabuleiro.celula[i][j].mark[k])
                     {
-                        // Calcula os pontos para o "X"
-                        int linhaLargura = 4; // Largura da linha do "X"
+                        int linhaLargura = 4;
                         ponto_t inicioX1 = {posX - linhaLargura + 3, posY - linhaLargura - 3};
                         ponto_t fimX1 = {posX + linhaLargura + 3, posY + linhaLargura - 3};
                         ponto_t inicioX2 = {posX + linhaLargura + 3, posY - linhaLargura - 3};
                         ponto_t fimX2 = {posX - linhaLargura + 3, posY + linhaLargura - 3};
 
-                        // Desenha o "X" em cima do número
-                        tela_linha(inicioX1, fimX1, 2, vermelho); // Desenha a primeira linha do "X"
-                        tela_linha(inicioX2, fimX2, 2, vermelho); // Desenha a segunda linha do "X"
+                        // desenha o x em cima do número
+                        tela_linha(inicioX1, fimX1, 2, vermelho);
+                        tela_linha(inicioX2, fimX2, 2, vermelho);
                     }
                 }
             }
@@ -492,7 +505,7 @@ void desenha_numero_atual(jogo *sudoku)
 void desenha_tela_jogo(jogo *sudoku)
 {
     // linhas da grade do tabuleiro do sudoku
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < (GRID_SIZE + 1); i++)
     {
         if (i == 0 || i % 3 == 0)
         {
@@ -509,7 +522,7 @@ void desenha_tela_jogo(jogo *sudoku)
     // números no tabuleiro
     desenha_numeros(sudoku);
 
-    // quadrado em que aparece o número atual
+    // quadrado em que aparece o numero atual
     desenha_numero_atual(sudoku);
 
     // desenha jogador
@@ -567,7 +580,7 @@ void desenha_tela_inicio(jogo *sudoku)
     button start = cria_botao((ponto_t){275, 330}, (tamanho_t){150, 50}, "Play! [Enter]");
     while (sudoku->play)
     {
-        tela_texto((ponto_t){290, 70}, 20, branco, "Welcome to");
+        tela_texto((ponto_t){290, 80}, 20, branco, "Welcome to");
         tela_texto((ponto_t){180, 160}, 80, branco, "SUDOKU");
         le_player_name(sudoku);
         tela_texto((ponto_t){235, 230}, 20, branco, "Enter the player name:");
@@ -635,9 +648,9 @@ void imprime_score(vetor_de_recordes *records, jogo *sudoku)
             tela_texto((ponto_t){260, 150 + (30 * i)}, 20, branco, tab);
             tela_texto((ponto_t){400, 150 + (30 * i)}, 20, branco, score);
         }
-        tela_texto((ponto_t){210, 300}, 50, branco, "...");
+        tela_texto((ponto_t){210, 260}, 50, branco, "...");
 
-        for (int k = now - 1; k <= now + 1; k++)
+        for (int k = (now - 1), l = 0; k <= (now + 1); k++, l++)
         {
             cor_t cor = branco;
             if (sudoku->player_atual.pontos == records->vetor[k].pontos)
@@ -648,9 +661,9 @@ void imprime_score(vetor_de_recordes *records, jogo *sudoku)
             sprintf(tab, "%d", records->vetor[k].id_tab);
             char score[10];
             sprintf(score, "%d", records->vetor[k].pontos);
-            tela_texto((ponto_t){60, 320 + (30 * k)}, 20, cor, records->vetor[k].player_name);
-            tela_texto((ponto_t){260, 320 + (30 * k)}, 20, cor, tab);
-            tela_texto((ponto_t){400, 320 + (30 * k)}, 20, cor, score);
+            tela_texto((ponto_t){60, 320 + (30 * l)}, 20, cor, records->vetor[k].player_name);
+            tela_texto((ponto_t){260, 320 + (30 * l)}, 20, cor, tab);
+            tela_texto((ponto_t){400, 320 + (30 * l)}, 20, cor, score);
         }
     }
 }
@@ -663,7 +676,7 @@ void desenha_tela_play_again(jogo *sudoku, vetor_de_recordes *records)
     {
         sudoku->mouse = tela_rato();
 
-        // Score
+        // score
         imprime_score(records, sudoku);
 
         // botao de play again
@@ -692,6 +705,24 @@ void desenha_tela_play_again(jogo *sudoku, vetor_de_recordes *records)
         }
 
         tela_atualiza();
+    }
+}
+
+void ajusta_marcacao(jogo *sudoku)
+{
+    if (sudoku->tabuleiro.celula[sudoku->lin_jogador][sudoku->col_jogador].value == 0)
+    {
+        if (sudoku->numero_atual == 0)
+        {
+            for (int i = 0; i < 9; i++)
+            {
+                sudoku->tabuleiro.celula[sudoku->lin_jogador][sudoku->col_jogador].mark[i] = false;
+            }
+        }
+        else 
+        {
+            sudoku->tabuleiro.celula[sudoku->lin_jogador][sudoku->col_jogador].mark[sudoku->numero_atual - 1] = !sudoku->tabuleiro.celula[sudoku->lin_jogador][sudoku->col_jogador].mark[sudoku->numero_atual - 1];
+        }
     }
 }
 
@@ -750,14 +781,7 @@ void processa_teclado_jogo(jogo *sudoku)
             break;
 
         case 'm': // tecla m
-            if (sudoku->tabuleiro.celula[sudoku->lin_jogador][sudoku->col_jogador].mark[sudoku->numero_atual - 1])
-            {
-                sudoku->tabuleiro.celula[sudoku->lin_jogador][sudoku->col_jogador].mark[sudoku->numero_atual - 1] = false;
-            }
-            else
-            {
-                sudoku->tabuleiro.celula[sudoku->lin_jogador][sudoku->col_jogador].mark[sudoku->numero_atual - 1] = true;
-            }
+            ajusta_marcacao(sudoku);
             break;
 
         case '0':
@@ -819,9 +843,9 @@ void processa_pontuacao(jogo *sudoku)
 
 void ganhou(jogo *sudoku)
 {
-    for (int i = 0; i < 9; i++)
+    for (int i = 0; i < GRID_SIZE; i++)
     {
-        for (int j = 0; j < 9; j++)
+        for (int j = 0; j < GRID_SIZE; j++)
         {
             if (sudoku->tabuleiro.celula[i][j].value == 0)
                 return;
@@ -851,8 +875,7 @@ int main()
     jogo sudoku;
     sudoku.tamanho_tela = (tamanho_t){700, 500};
 
-    // inicializa a tela gráfica
-    tela_inicio(sudoku.tamanho_tela, "Sudoku");
+    tela_inicio(sudoku.tamanho_tela, "Amanda's Sudoku");
     inicializa_jogo(&sudoku);
 
     desenha_tela_inicio(&sudoku);
@@ -869,6 +892,5 @@ int main()
         }
     }
 
-    // encerra a tela gráfica
     tela_fim();
 }
