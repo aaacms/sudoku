@@ -24,7 +24,7 @@
 </ul>
 <h2>Imagens</h2>
 <p>Seguem abaixo algumas imagens da interface do jogo.</p>
-<a href="img/cover.png"></a>
-<a href="img/game_screen.png"></a>
-<a href="img/playing_screen.png"></a>
-<a href="img/score.png"></a>
+<img src="img/cover.png">
+<img src="img/game_screen.png">
+<img src="img/playing_screen.png">
+<img src="img/score.png">
