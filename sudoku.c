@@ -102,6 +102,7 @@ typedef struct
 void error404(char msg[])
 {
     printf("\nAlgo de errado não está certo %s\n", msg);
+    exit(1); 
 }
 
 int sorteia_numero(int x)
